@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.27703.2026
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MotionTK", "MotionTK\MotionTK.csproj", "{2F497C0C-043B-40CA-89DB-7BB9F7C592D5}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2F497C0C-043B-40CA-89DB-7BB9F7C592D5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2F497C0C-043B-40CA-89DB-7BB9F7C592D5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2F497C0C-043B-40CA-89DB-7BB9F7C592D5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2F497C0C-043B-40CA-89DB-7BB9F7C592D5}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {D8194467-BEFC-4EDA-B577-8E67B124C079}
+	EndGlobalSection
+EndGlobal
