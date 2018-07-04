@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
-using System.Runtime.InteropServices;
 using System.Threading;
 using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.ffmpeg;
@@ -23,7 +20,7 @@ namespace MotionTK {
 		private byte* _videoRawBuffer;
 		private byte* _videoRgbaBuffer;
 		private SwsContext* _videoSwContext;
-		internal readonly List<VideoPlayback> VideoPlaybacks = new List<VideoPlayback>();
+		public VideoPlayback VideoPlayback { get; private set; }
 
 		private int _audioStreamId = -1;
 		private AVCodecContext* _audioContext;
@@ -31,7 +28,7 @@ namespace MotionTK {
 		private AVFrame* _audioRawBuffer;
 		private byte* _audioPcmBuffer;
 		private SwrContext* _audioSwContext;
-		internal readonly List<AudioPlayback> AudioPlaybacks = new List<AudioPlayback>();
+		public AudioPlayback AudioPlayback { get; private set; }
 
 		private AVFormatContext* _formatContext;
 		private Thread _decodeThread;
@@ -39,7 +36,6 @@ namespace MotionTK {
 		private bool _playingToEof;
 		private TimeSpan _playingOffset = TimeSpan.Zero;
 		private DateTime _lastUpdate;
-		internal object PlaybackLock = new object();
 
 		public bool HasVideo => _videoStreamId != -1;
 		public bool HasAudio => _audioStreamId != -1;
@@ -50,31 +46,9 @@ namespace MotionTK {
 		public TimeSpan FileLength { get; private set; } = TimeSpan.Zero;
 		public bool IsEndOfFileReached { get; private set; }
 
-		public bool IsFull {
-			get {
-				lock(PlaybackLock) {
-					if(HasVideo) {
-						foreach(var playback in VideoPlaybacks) {
-							lock(playback.Lock) {
-								if(playback.PacketQueue.Count < MaxPacketQueue) {
-									return false;
-								}
-							}
-						}
-					}
-					else if(HasAudio) {
-						foreach(var playback in AudioPlaybacks) {
-							lock(playback.Lock) {
-								if(playback.PacketQueue.Count < MaxPacketQueue) {
-									return false;
-								}
-							}
-						}
-					}
-					return true;
-				}
-			}
-		}
+		public bool IsFull => (!HasVideo || VideoPlayback.QueuedPackets >= MaxPacketQueue)
+						   && (!HasAudio || AudioPlayback.QueuedPackets >= MaxPacketQueue);
+
 		public TimeSpan PlayingOffset {
 			get => _playingOffset;
 			set {
@@ -115,6 +89,12 @@ namespace MotionTK {
 			get {
 				if(!HasVideo) return TimeSpan.Zero;
 
+				var a = _formatContext->streams[_videoStreamId]->avg_frame_rate;
+				if(a.num != 0 || a.den != 0) return TimeSpan.FromTicks(TimeSpan.TicksPerSecond * a.den / a.num);
+
+				var r = _formatContext->streams[_videoStreamId]->r_frame_rate;
+				if(r.num != 0 || r.den != 0) return TimeSpan.FromTicks(TimeSpan.TicksPerSecond * r.den / r.num);
+
 				double tickCount = _formatContext->streams[_videoStreamId]->duration;
 				double frameCount = _formatContext->streams[_videoStreamId]->nb_frames;
 				double ticksPerFrame = tickCount / frameCount;
@@ -122,34 +102,12 @@ namespace MotionTK {
 
 				double frameDuration = ticksPerFrame * tickDuration;
 				return TimeSpan.FromTicks((long)(frameDuration * TimeSpan.TicksPerSecond));
-
-				double fileDuration = _formatContext->duration;
-				long frameDuration2 = (long)(fileDuration / frameCount * TimeSpan.TicksPerMillisecond) / 1000;
-				return TimeSpan.FromTicks(frameDuration2);
-
-
-				var r1 = _formatContext->streams[_videoStreamId]->avg_frame_rate;
-				var r2 = _formatContext->streams[_videoStreamId]->r_frame_rate;
-
-				if((r1.num == 0 || r1.den == 0) && (r2.num == 0 || r2.den == 0)) {
-					return TimeSpan.FromSeconds(1.0 / 29.97);
-				}
-				if(r1.num != 0 && r1.den != 0) {
-					return TimeSpan.FromSeconds(1.0 / ((double)r1.num / r1.den));
-				}
-
-				return TimeSpan.FromSeconds(1.0 / ((double)r2.num / r2.den));
 			}
 		}
 
 		#endregion
 
 		#region Setup
-
-		private const string LibAvFormat = "avformat-58";
-
-		[DllImport(LibAvFormat)]
-		private static extern void av_register_all();
 
 		public DataSource(string path, bool enableVideo = true, bool enableAudio = true) {
 			//av_register_all();
@@ -178,14 +136,8 @@ namespace MotionTK {
 			if(_formatContext->duration != AV_NOPTS_VALUE) FileLength = TimeSpan.FromTicks((long)(_formatContext->duration / 1000d * TimeSpan.TicksPerMillisecond));
 			if(HasVideo || HasAudio) {
 				StartDecodeThread();
-				lock(PlaybackLock) {
-					foreach(var playback in VideoPlaybacks) {
-						playback.SourceReloaded();
-					}
-					foreach(var playback in AudioPlaybacks) {
-						playback.SourceReloaded();
-					}
-				}
+				VideoPlayback?.SourceReloaded();
+				AudioPlayback?.SourceReloaded();
 			}
 			else {
 				Console.WriteLine("Motion: Failed to load audio or video");
@@ -234,6 +186,8 @@ namespace MotionTK {
 				Console.WriteLine("Motion: Failed to create video scaling context");
 				_videoStreamId = -1;
 			}
+
+			VideoPlayback = new VideoPlayback(this);
 		}
 
 		private void InitAudio() {
@@ -294,17 +248,12 @@ namespace MotionTK {
 			av_opt_set_sample_fmt(_audioSwContext, "out_sample_fmt", AVSampleFormat.AV_SAMPLE_FMT_S16, 0);
 			swr_init(_audioSwContext);
 			AudioChannelCount = av_get_channel_layout_nb_channels(outchanlayout);
+
+			AudioPlayback = new AudioPlayback(this);
 		}
 
 		~DataSource() {
-			lock(PlaybackLock) {
-				foreach(var playback in VideoPlaybacks) {
-					playback.Destroy();
-				}
-				foreach(var playback in AudioPlaybacks) {
-					playback.Destroy();
-				}
-			}
+			Dispose();
 		}
 
 		public void Dispose() {
@@ -361,18 +310,10 @@ namespace MotionTK {
 				_formatContext = null;
 			}
 
-			lock(PlaybackLock) {
-				while(VideoPlaybacks.Any()) {
-					var playback = VideoPlaybacks[0];
-					VideoPlaybacks.Remove(playback);
-					playback.Destroy();
-				}
-				while(AudioPlaybacks.Any()) {
-					var playback = AudioPlaybacks[0];
-					AudioPlaybacks.Remove(playback);
-					playback.Destroy();
-				}
-			}
+			VideoPlayback?.Dispose();
+			AudioPlayback?.Dispose();
+			VideoPlayback = null;
+			AudioPlayback = null;
 		}
 
 		private static AVFrame* CreateVideoFrame(AVPixelFormat format, int width, int height, ref byte* buffer) {
@@ -434,24 +375,13 @@ namespace MotionTK {
 			if(State == PlayState.Playing) _playingOffset += deltaTime;
 
 			// avoid huge jumps
-			if(deltaTime > TimeSpan.FromMilliseconds(100)) return;
-
-			lock(PlaybackLock) {
-				foreach(var playback in VideoPlaybacks) {
-					playback.Update(deltaTime);
-				}
-			}
+			if(deltaTime < TimeSpan.FromMilliseconds(100))
+				VideoPlayback?.Update(deltaTime);
 		}
 
 		private void NotifyStateChanged(PlayState newState) {
-			lock(PlaybackLock) {
-				foreach(var playback in VideoPlaybacks) {
-					playback.StateChanged(State, newState);
-				}
-				foreach(var playback in AudioPlaybacks) {
-					playback.StateChanged(State, newState);
-				}
-			}
+			VideoPlayback?.StateChanged(State, newState);
+			AudioPlayback?.StateChanged(State, newState);
 		}
 
 		#endregion
@@ -511,13 +441,7 @@ namespace MotionTK {
 
 
 			var videoPacket = new VideoPacket(_videoRgbaFrame->data[0], _videoSize.Width, _videoSize.Height, TimeSpan.Zero);
-			lock(PlaybackLock) {
-				foreach(var playback in VideoPlaybacks) {
-					lock(playback.Lock) {
-						playback.PacketQueue.Add(videoPacket);
-					}
-				}
-			}
+			VideoPlayback.PushPacket(videoPacket);
 
 			return true;
 		}
@@ -532,13 +456,7 @@ namespace MotionTK {
 			if(convertlength <= 0) return false;
 
 			var audioPacket = new AudioPacket(_audioPcmBuffer, convertlength, AudioChannelCount);
-			lock(PlaybackLock) {
-				foreach(var playback in AudioPlaybacks) {
-					lock(playback.Lock) {
-						playback.PacketQueue.Add(audioPacket);
-					}
-				}
-			}
+			AudioPlayback.PushPacket(audioPacket);
 
 			return true;
 		}

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Drawing;
+using System.Reflection;
 using System.Threading;
 using MotionTK;
 using OpenTK;
@@ -10,39 +11,46 @@ using OpenTK.Graphics.OpenGL;
 namespace Sample {
 	internal static class Program {
 
-		private static DataSource Source;
-		private static VideoPlayback Video;
-		private static AudioPlayback Audio;
+		internal static DataSource Source;
+		internal static VideoPlayback Video;
+		internal static AudioPlayback Audio;
 
-		private static GameWindow Window;
+		internal static GameWindow Window;
 
-		private static IntPtr AudioDevice;
-		private static ContextHandle AudioContext;
+		internal static IntPtr AudioDevice;
+		internal static ContextHandle AudioContext;
+		internal static GraphicsContext GraphicsContext;
 
-		private static void Main(string[] args) {
+		internal static void Main(string[] args) {
+			if(args.Length != 1) {
+				Console.WriteLine("Usage: " + Assembly.GetExecutingAssembly().GetName().Name + " <video file>");
+				return;
+			}
+
 			Setup();
-			LoadVideo(args.Length > 0 ? args[0] : "video.mp4");
+			LoadVideo(args[0]);
 			Run();
 			UnloadVideo();
 			Cleanup();
 		}
 
-		private static void LoadVideo(string path) {
+		internal static void LoadVideo(string path) {
 			Source = new DataSource(path);
-			Video = new VideoPlayback(Source);
-			Audio = new AudioPlayback(Source);
+			Video = Source.VideoPlayback;
+			Audio = Source.AudioPlayback;
 		}
 
-		private static void UnloadVideo() {
+		internal static void UnloadVideo() {
 			Source.Dispose();
 		}
 
-		private static void Setup() {
+		internal static void Setup() {
 			Thread.CurrentThread.Name = "Main Thread";
 
 			using(var mre = new ManualResetEvent(false)) {
 				new Thread(() => {
 					Window = new GameWindow {
+						WindowBorder = WindowBorder.Fixed,
 						ClientSize = new Size(1280, 720),
 						Title = "MotionTK Playback Demo"
 					};
@@ -64,22 +72,21 @@ namespace Sample {
 			AudioContext = Alc.CreateContext(AudioDevice, new int[0]);
 			Alc.MakeContextCurrent(AudioContext);
 
-			// The active graphics context umst be on the rendering thread
-			new GraphicsContext(GraphicsMode.Default, Window.WindowInfo).MakeCurrent(Window.WindowInfo);
+			// The active graphics context must be available on the rendering thread
+			GraphicsContext = new GraphicsContext(GraphicsMode.Default, Window.WindowInfo);
+			GraphicsContext.MakeCurrent(Window.WindowInfo);
 			GL.Enable(EnableCap.Texture2D);
 		}
 
-		private static void Run() {
+		internal static void Run() {
+			if(Video == null) return;
 
 			Window.ClientSize = Video.Size;
 			Window.Visible = true;
 			Source.Play();
 
-			//GL.MatrixMode(MatrixMode.Modelview);
-			//GL.LoadIdentity();
-
 			// Render loop
-			while(Window.Exists) {
+			while(Window.Exists && Source.State == PlayState.Playing) {
 				GL.Clear(ClearBufferMask.ColorBufferBit);
 
 				Source.Update();
@@ -90,8 +97,9 @@ namespace Sample {
 			}
 		}
 
-		private static void Cleanup() {
+		internal static void Cleanup() {
 			Window.Close();
+			GraphicsContext.Dispose();
 			Alc.MakeContextCurrent(ContextHandle.Zero);
 			Alc.DestroyContext(AudioContext);
 			Alc.CloseDevice(AudioDevice);

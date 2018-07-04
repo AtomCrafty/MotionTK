@@ -1,5 +1,5 @@
 ﻿namespace MotionTK {
-	public unsafe class AudioPacket {
+	public unsafe class AudioPacket : Packet {
 		public readonly short[] SampleBuffer;
 		public readonly int TotalSampleCount;
 
@@ -13,5 +13,7 @@
 				SampleBuffer[i] = ((short*)sampleBuffer)[i];
 			}
 		}
+
+		public override void Dispose() { }
 	}
 }
