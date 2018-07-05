@@ -7,7 +7,7 @@ using static FFmpeg.AutoGen.ffmpeg;
 namespace MotionTK {
 	public unsafe class DataSource : IDisposable {
 		private const int MaxAudioSamples = 192000;
-		private const int MaxPacketQueue = 20;
+		private const int MaxQueuedPackets = 100;
 
 		#region Fields and Properties
 
@@ -46,8 +46,8 @@ namespace MotionTK {
 		public TimeSpan FileLength { get; private set; } = TimeSpan.Zero;
 		public bool IsEndOfFileReached { get; private set; }
 
-		public bool IsFull => (!HasVideo || VideoPlayback.QueuedPackets >= MaxPacketQueue)
-						   && (!HasAudio || AudioPlayback.QueuedPackets >= MaxPacketQueue);
+		public bool IsFull => (!HasVideo || VideoPlayback.QueuedPackets >= MaxQueuedPackets)
+						   && (!HasAudio || AudioPlayback.QueuedPackets >= MaxQueuedPackets);
 
 		public TimeSpan PlayingOffset {
 			get => _playingOffset;
@@ -257,6 +257,7 @@ namespace MotionTK {
 		}
 
 		public void Dispose() {
+			GC.SuppressFinalize(this);
 			Stop();
 			StopDecodeThread();
 			_playingOffset = TimeSpan.Zero;
@@ -375,8 +376,8 @@ namespace MotionTK {
 			if(State == PlayState.Playing) _playingOffset += deltaTime;
 
 			// avoid huge jumps
-			if(deltaTime < TimeSpan.FromMilliseconds(100))
-				VideoPlayback?.Update(deltaTime);
+			//if(deltaTime < TimeSpan.FromMilliseconds(100))
+			VideoPlayback?.Update(deltaTime);
 		}
 
 		private void NotifyStateChanged(PlayState newState) {
@@ -442,7 +443,6 @@ namespace MotionTK {
 
 			var videoPacket = new VideoPacket(_videoRgbaFrame->data[0], _videoSize.Width, _videoSize.Height, TimeSpan.Zero);
 			VideoPlayback.PushPacket(videoPacket);
-
 			return true;
 		}
 

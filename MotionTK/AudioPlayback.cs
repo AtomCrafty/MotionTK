@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using System.Threading;
 using OpenTK.Audio.OpenAL;
 
@@ -12,7 +13,7 @@ namespace MotionTK {
 
 		internal AudioPlayback(DataSource dataSource) : base(dataSource) {
 			_sourceHandle = AL.GenSource();
-			_playbackThread = new Thread(PlaybackThread) { Name = "Audio Playback" };
+			_playbackThread = new Thread(PlaybackThreadRun) { Name = "Audio Playback" };
 			_playbackThread.Start();
 		}
 
@@ -62,7 +63,7 @@ namespace MotionTK {
 			}
 		}
 
-		protected void PlaybackThread() {
+		protected void PlaybackThreadRun() {
 			while(_sourceHandle != -1) {
 				const int maxQueue = 40;
 
@@ -80,7 +81,7 @@ namespace MotionTK {
 				}
 
 				// queue new buffers
-				while(queued++ < maxQueue && PacketQueue.TryTake(out var packet)) {
+				while(queued++ < maxQueue && PacketQueue.TryTake(out var packet, TimeSpan.FromMilliseconds(50))) {
 					var buffer = AudioBuffer.Get(packet.TotalSampleCount, DataSource.AudioChannelCount == 2 ? ALFormat.Stereo16 : ALFormat.Mono16, _sampleRate);
 					buffer.Data = packet.SampleBuffer;
 					buffer.Bind();
@@ -94,6 +95,8 @@ namespace MotionTK {
 					//AL.SourcePause(_sourceHandle);
 					AL.SourcePlay(_sourceHandle);
 				}
+
+				Thread.Sleep(10);
 			}
 		}
 	}

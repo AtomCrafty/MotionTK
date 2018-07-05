@@ -32,6 +32,7 @@ namespace MotionTK {
 
 		public void Draw() {
 			// Draw the Color Texture
+			GL.Enable(EnableCap.Texture2D);
 			GL.BindTexture(TextureTarget.Texture2D, TextureHandle);
 			GL.Begin(PrimitiveType.Quads);
 			{
@@ -41,6 +42,7 @@ namespace MotionTK {
 				GL.TexCoord2(1.0f, 0.0f); GL.Vertex2(1.0f, 1.0f);
 			}
 			GL.End();
+			GL.Disable(EnableCap.Texture2D);
 		}
 
 		internal override void SourceReloaded() {
@@ -83,37 +85,40 @@ namespace MotionTK {
 				_skipFrames += jumps;
 			}
 
-				while(_skipFrames > 1 && PacketQueue.TryTake(out var ignoredPacket)) {
-					_skipFrames--;
-					PlayedFrameCount++;
-					ignoredPacket.Dispose();
-					//Console.WriteLine("Skipped frame " + PlayedFrameCount);
-				}
-
-				if(_skipFrames < 1 || !PacketQueue.TryTake(out var packet)) return;
-
-				#region Debug
-				var videoTime = TimeSpan.FromTicks(_frameTime.Ticks * PlayedFrameCount);
-				Console.ForegroundColor = ConsoleColor.Cyan;
-				Console.Write($"Frame {PlayedFrameCount + 1} ({_totalPlayTime} ~ {videoTime}) ");
-				Console.ForegroundColor = ConsoleColor.Red;
-				Console.Write(_totalPlayTime - videoTime);
-				Console.ForegroundColor = ConsoleColor.Green;
-				Console.Write($" [{_frameTime}]    \r");
-				Console.ResetColor();
-				#endregion
-
+			while(_skipFrames > 1 && PacketQueue.TryTake(out var ignoredPacket)) {
 				_skipFrames--;
 				PlayedFrameCount++;
+				ignoredPacket.Dispose();
+				//Console.WriteLine("Skipped frame " + PlayedFrameCount);
+			}
 
-				// update texture
-				GL.BindTexture(TextureTarget.Texture2D, TextureHandle);
-				GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, DataSource.VideoSize.Width, DataSource.VideoSize.Height, 0, PixelFormat.Rgba, PixelType.UnsignedByte, packet.RgbaBuffer);
+			if(_skipFrames < 1 || !PacketQueue.TryTake(out var packet)) return;
 
-				packet.Dispose();
+			#region Debug
+			var videoTime = TimeSpan.FromTicks(_frameTime.Ticks * PlayedFrameCount);
+			Console.ForegroundColor = ConsoleColor.Cyan;
+			Console.Write($"Frame {PlayedFrameCount + 1} ({_totalPlayTime} ~ {videoTime}) ");
+			Console.ForegroundColor = ConsoleColor.Red;
+			Console.Write(_totalPlayTime - videoTime);
+			Console.ForegroundColor = ConsoleColor.Green;
+			Console.Write($" [{_frameTime}]    \r");
+			Console.ResetColor();
+			#endregion
+
+			_skipFrames--;
+			PlayedFrameCount++;
+
+			// update texture
+			GL.BindTexture(TextureTarget.Texture2D, TextureHandle);
+			GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, DataSource.VideoSize.Width, DataSource.VideoSize.Height, 0, PixelFormat.Rgba, PixelType.UnsignedByte, packet.RgbaBuffer);
+
+			packet.Dispose();
 		}
 
+		~VideoPlayback() => Dispose();
+
 		public override void Dispose() {
+			GC.SuppressFinalize(this);
 			if(TextureHandle == -1) return;
 			GL.DeleteTexture(TextureHandle);
 			TextureHandle = -1;

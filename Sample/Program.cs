@@ -50,6 +50,8 @@ namespace Sample {
 			using(var mre = new ManualResetEvent(false)) {
 				new Thread(() => {
 					Window = new GameWindow {
+						// uncomment this line to disable the frame rate limitation
+						//VSync = VSyncMode.Off,
 						WindowBorder = WindowBorder.Fixed,
 						ClientSize = new Size(1280, 720),
 						Title = "MotionTK Playback Demo"
@@ -59,7 +61,10 @@ namespace Sample {
 					mre.Set();
 
 					// Event loop
-					while(Window.Exists) Window.ProcessEvents();
+					while(Window.Exists) {
+						Window.ProcessEvents();
+						Thread.Sleep(5);
+					}
 
 				}) { IsBackground = true, Name = "Event Thread" }.Start();
 
@@ -75,7 +80,6 @@ namespace Sample {
 			// The active graphics context must be available on the rendering thread
 			GraphicsContext = new GraphicsContext(GraphicsMode.Default, Window.WindowInfo);
 			GraphicsContext.MakeCurrent(Window.WindowInfo);
-			GL.Enable(EnableCap.Texture2D);
 		}
 
 		internal static void Run() {
@@ -85,6 +89,9 @@ namespace Sample {
 			Window.Visible = true;
 			Source.Play();
 
+			var frameTimes = new DateTime[100];
+			int frameTimeIndex = 0;
+
 			// Render loop
 			while(Window.Exists && Source.State == PlayState.Playing) {
 				GL.Clear(ClearBufferMask.ColorBufferBit);
@@ -92,9 +99,34 @@ namespace Sample {
 				Source.Update();
 				Video.Draw();
 
+				// calculate fps
+				var t1 = frameTimes[frameTimeIndex] = DateTime.Now;
+				frameTimeIndex = (frameTimeIndex + 1) % 100;
+				var t2 = frameTimes[frameTimeIndex];
+				Console.WriteLine(t2 == default(DateTime) ? "????? FPS" : $"{100 / (t1 - t2).TotalSeconds:F2} FPS");
+				//*/
+
+				DrawProgressBar();
 				Window.SwapBuffers();
-				Thread.Sleep(10);
 			}
+		}
+
+		internal static void DrawProgressBar() {
+			double progress = Source.PlayingOffset.TotalMilliseconds / Source.FileLength.TotalMilliseconds;
+			double x = progress * 2 - 1;
+
+			GL.Enable(EnableCap.Blend);
+			GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+			GL.Color4(Color.FromArgb(100, Color.Red));
+			GL.Begin(PrimitiveType.Quads);
+			{
+				GL.Vertex2(-1, 30d / Video.Size.Height - 1);
+				GL.Vertex2(-1, -1);
+				GL.Vertex2(x, -1);
+				GL.Vertex2(x, 30d / Video.Size.Height - 1);
+			}
+			GL.End();
+			GL.Color3(Color.White);
 		}
 
 		internal static void Cleanup() {
