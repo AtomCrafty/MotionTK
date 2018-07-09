@@ -7,10 +7,10 @@ using static FFmpeg.AutoGen.ffmpeg;
 namespace MotionTK {
 	public unsafe class DataSource : IDisposable {
 		private const int MaxAudioSamples = 192000;
-		private const int MaxQueuedPackets = 100;
+		private const int MaxQueuedPackets = 10;
 
 		#region Fields and Properties
-
+		
 		private int _videoStreamId = -1;
 		private Size _videoSize = Size.Empty;
 		private AVCodecContext* _videoContext;
@@ -318,15 +318,23 @@ namespace MotionTK {
 		}
 
 		private static AVFrame* CreateVideoFrame(AVPixelFormat format, int width, int height, ref byte* buffer) {
-			AVFrame* frame = av_frame_alloc();
+			var frame = av_frame_alloc();
 			if(frame == null) return null;
-			ulong size = (ulong)avpicture_get_size(format, width, height);
+			ulong size = (ulong)av_image_get_buffer_size(format, width, height, sizeof(int));
 			buffer = (byte*)av_malloc(size);
 			if(buffer == null) {
 				av_frame_free(&frame);
 				return null;
 			}
-			avpicture_fill((AVPicture*)frame, buffer, format, width, height);
+
+			var data = new byte_ptrArray4();
+			var linesize = new int_array4();
+			av_image_fill_arrays(ref data, ref linesize, buffer, format, width, height, sizeof(int));
+			for(uint i = 0; i < 4; i++) {
+				frame->data[i] = data[i];
+				frame->linesize[i] = linesize[i];
+			}
+
 			return frame;
 		}
 
@@ -430,16 +438,16 @@ namespace MotionTK {
 						}
 					}
 				}
-				Thread.Sleep(5);
+				Thread.Sleep(50);
 			}
 		}
 
 		private bool DecodeVideo(AVPacket* packet) {
-			int decodeResult = 0;
-			if(avcodec_decode_video2(_videoContext, _videoRawFrame, &decodeResult, packet) < 0 || decodeResult == 0) return false;
+
+			if(avcodec_send_packet(_videoContext, packet) < 0) return false;
+			if(avcodec_receive_frame(_videoContext, _videoRawFrame) < 0) return false;
 
 			if(sws_scale(_videoSwContext, _videoRawFrame->data, _videoRawFrame->linesize, 0, _videoContext->height, _videoRgbaFrame->data, _videoRgbaFrame->linesize) == 0) return false;
-
 
 			var videoPacket = new VideoPacket(_videoRgbaFrame->data[0], _videoSize.Width, _videoSize.Height, TimeSpan.Zero);
 			VideoPlayback.PushPacket(videoPacket);
@@ -447,8 +455,9 @@ namespace MotionTK {
 		}
 
 		private bool DecodeAudio(AVPacket* packet) {
-			int decodeResult = 0;
-			if(avcodec_decode_audio4(_audioContext, _audioRawBuffer, &decodeResult, packet) <= 0 || decodeResult == 0) return false;
+
+			if(avcodec_send_packet(_audioContext, packet) < 0) return false;
+			if(avcodec_receive_frame(_audioContext, _audioRawBuffer) < 0) return false;
 
 			var audioPcmBuffer = _audioPcmBuffer;
 			int convertlength = swr_convert(_audioSwContext, &audioPcmBuffer, _audioRawBuffer->nb_samples, _audioRawBuffer->extended_data, _audioRawBuffer->nb_samples);

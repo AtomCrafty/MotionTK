@@ -24,6 +24,7 @@ namespace Sample {
 		internal static void Main(string[] args) {
 			if(args.Length != 1) {
 				Console.WriteLine("Usage: " + Assembly.GetExecutingAssembly().GetName().Name + " <video file>");
+				Console.ReadLine();
 				return;
 			}
 
@@ -99,7 +100,7 @@ namespace Sample {
 				Source.Update();
 				Video.Draw();
 
-				// calculate fps
+				/*/ calculate fps
 				var t1 = frameTimes[frameTimeIndex] = DateTime.Now;
 				frameTimeIndex = (frameTimeIndex + 1) % 100;
 				var t2 = frameTimes[frameTimeIndex];
@@ -108,6 +109,7 @@ namespace Sample {
 
 				DrawProgressBar();
 				Window.SwapBuffers();
+				//Thread.Sleep(20);
 			}
 		}
 
