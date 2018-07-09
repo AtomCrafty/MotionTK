@@ -9,8 +9,8 @@ namespace MotionTK {
 		private const int MaxAudioSamples = 192000;
 		private const int MaxQueuedPackets = 10;
 
-		#region Fields and Properties
-		
+		#region Fields
+
 		private int _videoStreamId = -1;
 		private Size _videoSize = Size.Empty;
 		private AVCodecContext* _videoContext;
@@ -37,6 +37,10 @@ namespace MotionTK {
 		private TimeSpan _playingOffset = TimeSpan.Zero;
 		private DateTime _lastUpdate;
 
+		#endregion
+
+		#region Properties
+
 		public bool HasVideo => _videoStreamId != -1;
 		public bool HasAudio => _audioStreamId != -1;
 		public Size VideoSize => new Size(_videoSize.Width, _videoSize.Height);
@@ -53,10 +57,10 @@ namespace MotionTK {
 			get => _playingOffset;
 			set {
 				if(!HasVideo && !HasAudio) return;
+				bool startPlaying = State == PlayState.Playing;
 				StopDecodeThread();
 				_playingOffset = value;
 				_playingToEof = false;
-				bool startPlaying = State == PlayState.Playing;
 
 				if(State != PlayState.Stopped) {
 					IsEndOfFileReached = true;
@@ -71,6 +75,7 @@ namespace MotionTK {
 					long pos = (long)(PlayingOffset.TotalSeconds * ftb);
 					av_seek_frame(_formatContext, _videoStreamId, pos, AVSEEK_FLAG_ANY);
 					avcodec_flush_buffers(_videoContext);
+					VideoPlayback.Flush();
 				}
 
 				if(HasAudio) {
@@ -79,13 +84,15 @@ namespace MotionTK {
 					long pos = (long)(PlayingOffset.TotalSeconds * ftb);
 					av_seek_frame(_formatContext, _audioStreamId, pos, AVSEEK_FLAG_ANY);
 					avcodec_flush_buffers(_audioContext);
+					AudioPlayback.Flush();
 				}
 
 				StartDecodeThread();
 				if(startPlaying) Play();
 			}
 		}
-		public TimeSpan VideoFrameDuration {
+
+		public TimeSpan FrameDuration {
 			get {
 				if(!HasVideo) return TimeSpan.Zero;
 
@@ -252,9 +259,7 @@ namespace MotionTK {
 			AudioPlayback = new AudioPlayback(this);
 		}
 
-		~DataSource() {
-			Dispose();
-		}
+		~DataSource() => Dispose();
 
 		public void Dispose() {
 			GC.SuppressFinalize(this);
@@ -414,11 +419,11 @@ namespace MotionTK {
 		}
 
 		private void DecodeThreadRun() {
+			var packet = av_packet_alloc();
 			while(_runDecodeThread) {
 				while(!IsFull && _runDecodeThread && !_playingToEof) {
 					bool validPacket = false;
 					while(!validPacket && _runDecodeThread) {
-						var packet = av_packet_alloc();
 						av_init_packet(packet);
 						if(av_read_frame(_formatContext, packet) == 0) {
 							if(packet->stream_index == _videoStreamId) {
@@ -427,19 +432,17 @@ namespace MotionTK {
 							else if(packet->stream_index == _audioStreamId) {
 								validPacket = DecodeAudio(packet);
 							}
-							av_packet_unref(packet);
-							av_packet_free(&packet);
 						}
 						else {
 							_playingToEof = true;
 							validPacket = true;
-							av_packet_unref(packet);
-							av_packet_free(&packet);
 						}
+						av_packet_unref(packet);
 					}
 				}
 				Thread.Sleep(50);
 			}
+			av_packet_free(&packet);
 		}
 
 		private bool DecodeVideo(AVPacket* packet) {
@@ -451,6 +454,7 @@ namespace MotionTK {
 
 			var videoPacket = new VideoPacket(_videoRgbaFrame->data[0], _videoSize.Width, _videoSize.Height, TimeSpan.Zero);
 			VideoPlayback.PushPacket(videoPacket);
+
 			return true;
 		}
 

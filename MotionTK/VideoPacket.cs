@@ -12,12 +12,7 @@ namespace MotionTK {
 			RgbaBuffer = new IntPtr(av_malloc(size));
 			Timestamp = timestamp;
 
-			// copy buffer
-			var src = (long*)rgbaBuffer;
-			var dest = (long*)RgbaBuffer.ToPointer();
-			for(uint i = 0; i < size / sizeof(long); i++) {
-				dest[i] = src[i];
-			}
+			Buffer.MemoryCopy(rgbaBuffer, RgbaBuffer.ToPointer(), size, size);
 		}
 
 		public override void Dispose() {

@@ -48,7 +48,7 @@ namespace MotionTK {
 		internal override void SourceReloaded() {
 			if(!DataSource.HasVideo) return;
 
-			_frameTime = DataSource.VideoFrameDuration;
+			_frameTime = DataSource.FrameDuration;
 			ResetBuffer();
 		}
 

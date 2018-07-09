@@ -16,12 +16,16 @@ namespace MotionTK {
 		internal abstract void SourceReloaded();
 		internal abstract void StateChanged(PlayState oldState, PlayState newState);
 
+		internal virtual void Flush() {
+			while(PacketQueue.TryTake(out var packet)) packet.Dispose();
+		}
+
 		internal void PushPacket(TPacket packet) {
 			PacketQueue.Add(packet);
 		}
 
 		public virtual void Dispose() {
-			while(PacketQueue.TryTake(out var packet)) packet.Dispose();
+			Flush();
 			PacketQueue.Dispose();
 		}
 	}

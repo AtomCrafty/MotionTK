@@ -13,7 +13,5 @@
 				SampleBuffer[i] = ((short*)sampleBuffer)[i];
 			}
 		}
-
-		public override void Dispose() { }
 	}
 }
