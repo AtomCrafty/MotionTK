@@ -1,5 +1,5 @@
 ﻿using System;
-using static FFmpeg.AutoGen.ffmpeg;
+using static MotionTK.FFmpeg;
 
 namespace MotionTK {
 	public unsafe class VideoPacket : Packet {

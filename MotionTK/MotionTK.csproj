@@ -45,6 +45,7 @@
     <Compile Include="AudioBuffer.cs" />
     <Compile Include="AudioPacket.cs" />
     <Compile Include="AudioPlayback.cs" />
+    <Compile Include="FFmpeg.cs" />
     <Compile Include="Packet.cs" />
     <Compile Include="Playback.cs" />
     <Compile Include="VideoPacket.cs" />

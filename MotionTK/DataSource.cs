@@ -2,7 +2,7 @@
 using System.Drawing;
 using System.Threading;
 using FFmpeg.AutoGen;
-using static FFmpeg.AutoGen.ffmpeg;
+using static MotionTK.FFmpeg;
 
 namespace MotionTK {
 	public unsafe class DataSource : IDisposable {
