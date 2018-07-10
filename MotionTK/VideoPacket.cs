@@ -7,12 +7,9 @@ namespace MotionTK {
 		public IntPtr RgbaBuffer { get; private set; }
 		public TimeSpan Timestamp { get; private set; }
 
-		public VideoPacket(byte* rgbaBuffer, int width, int height, TimeSpan timestamp) {
-			ulong size = (ulong)width * (ulong)height * 4;
-			RgbaBuffer = new IntPtr(av_malloc(size));
+		public VideoPacket(byte* rgbaBuffer, TimeSpan timestamp) {
 			Timestamp = timestamp;
-
-			Buffer.MemoryCopy(rgbaBuffer, RgbaBuffer.ToPointer(), size, size);
+			RgbaBuffer = new IntPtr(rgbaBuffer);
 		}
 
 		public override void Dispose() {

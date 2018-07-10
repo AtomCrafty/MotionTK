@@ -109,7 +109,7 @@ namespace Sample {
 
 				DrawProgressBar();
 				Window.SwapBuffers();
-				//Thread.Sleep(20);
+				Thread.Sleep(10);
 			}
 		}
 

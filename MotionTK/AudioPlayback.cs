@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Linq;
-using System.Threading;
 using OpenTK.Audio.OpenAL;
 
 namespace MotionTK {
@@ -9,12 +8,9 @@ namespace MotionTK {
 		protected int _sourceHandle;
 		protected int _channelCount;
 		protected int _sampleRate;
-		protected Thread _playbackThread;
 
 		internal AudioPlayback(DataSource dataSource) : base(dataSource) {
 			_sourceHandle = AL.GenSource();
-			_playbackThread = new Thread(PlaybackThreadRun) { Name = "Audio Playback" };
-			_playbackThread.Start();
 		}
 
 		public override void Dispose() {
@@ -32,9 +28,6 @@ namespace MotionTK {
 			}
 			AL.DeleteSource(_sourceHandle);
 			_sourceHandle = -1;
-
-			_playbackThread.Join();
-			_playbackThread = null;
 
 			base.Dispose();
 		}
@@ -63,40 +56,36 @@ namespace MotionTK {
 			}
 		}
 
-		protected void PlaybackThreadRun() {
-			while(_sourceHandle != -1) {
-				const int maxQueue = 40;
+		internal void Update() {
+			const int maxQueue = 40;
 
-				AL.GetSource(_sourceHandle, ALGetSourcei.SourceState, out int state);
-				AL.GetSource(_sourceHandle, ALGetSourcei.BuffersQueued, out int queued);
-				AL.GetSource(_sourceHandle, ALGetSourcei.BuffersProcessed, out int processed);
+			AL.GetSource(_sourceHandle, ALGetSourcei.SourceState, out int state);
+			AL.GetSource(_sourceHandle, ALGetSourcei.BuffersQueued, out int queued);
+			AL.GetSource(_sourceHandle, ALGetSourcei.BuffersProcessed, out int processed);
 
-				// unqueue processed buffers
-				if(processed > 0) {
-					var processedBuffers = new int[processed];
-					AL.SourceUnqueueBuffers(_sourceHandle, processed, processedBuffers);
-					foreach(int bufferHandle in processedBuffers) {
-						AudioBuffer.ByHandle(bufferHandle).MakeAvailable();
-					}
+			// unqueue processed buffers
+			if(processed > 0) {
+				var processedBuffers = new int[processed];
+				AL.SourceUnqueueBuffers(_sourceHandle, processed, processedBuffers);
+				foreach(int bufferHandle in processedBuffers) {
+					AudioBuffer.ByHandle(bufferHandle).MakeAvailable();
 				}
+			}
 
-				// queue new buffers
-				while(queued++ < maxQueue && PacketQueue.TryTake(out var packet, TimeSpan.FromMilliseconds(50))) {
-					var buffer = AudioBuffer.Get(packet.TotalSampleCount, DataSource.AudioChannelCount == 2 ? ALFormat.Stereo16 : ALFormat.Mono16, _sampleRate);
-					buffer.Data = packet.SampleBuffer;
-					buffer.Bind();
+			// queue new buffers
+			while(queued++ < maxQueue && PacketQueue.TryTake(out var packet, TimeSpan.FromMilliseconds(50))) {
+				var buffer = AudioBuffer.Get(packet.TotalSampleCount, DataSource.AudioChannelCount == 2 ? ALFormat.Stereo16 : ALFormat.Mono16, _sampleRate);
+				buffer.Data = packet.SampleBuffer;
+				buffer.Bind();
 
-					AL.SourceQueueBuffer(_sourceHandle, buffer.Handle);
-				}
+				AL.SourceQueueBuffer(_sourceHandle, buffer.Handle);
+			}
 
-				// restart if necessary
-				if((ALSourceState)state != ALSourceState.Playing && DataSource.State == PlayState.Playing) {
-					//Console.WriteLine("Playing source (" + (ALSourceState)state + ", " + processed + "/" + queued + ")");
-					//AL.SourcePause(_sourceHandle);
-					AL.SourcePlay(_sourceHandle);
-				}
-
-				Thread.Sleep(10);
+			// restart if necessary
+			if((ALSourceState)state != ALSourceState.Playing && DataSource.State == PlayState.Playing) {
+				//Console.WriteLine("Playing source (" + (ALSourceState)state + ", " + processed + "/" + queued + ")");
+				//AL.SourcePause(_sourceHandle);
+				AL.SourcePlay(_sourceHandle);
 			}
 		}
 	}

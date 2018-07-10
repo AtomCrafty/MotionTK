@@ -17,8 +17,6 @@ namespace MotionTK {
 		private AVCodec* _videoCodec;
 		private AVFrame* _videoRawFrame;
 		private AVFrame* _videoRgbaFrame;
-		private byte* _videoRawBuffer;
-		private byte* _videoRgbaBuffer;
 		private SwsContext* _videoSwContext;
 		public VideoPlayback VideoPlayback { get; private set; }
 
@@ -176,8 +174,8 @@ namespace MotionTK {
 			}
 
 			_videoSize = new Size(_videoContext->width, _videoContext->height);
-			_videoRawFrame = CreateVideoFrame(_videoContext->pix_fmt, _videoSize.Width, _videoSize.Height, ref _videoRawBuffer);
-			_videoRgbaFrame = CreateVideoFrame(AVPixelFormat.AV_PIX_FMT_RGBA, _videoSize.Width, _videoSize.Height, ref _videoRgbaBuffer);
+			_videoRawFrame = CreateVideoFrame(_videoContext->pix_fmt, _videoSize.Width, _videoSize.Height);
+			_videoRgbaFrame = CreateVideoFrame(AVPixelFormat.AV_PIX_FMT_RGBA, _videoSize.Width, _videoSize.Height);
 
 			if(_videoRawFrame == null || _videoRgbaFrame == null) {
 				Console.WriteLine("Motion: Failed to create video frames");
@@ -283,14 +281,12 @@ namespace MotionTK {
 			}
 			_audioCodec = null;
 			if(_videoRawFrame != null) {
-				DestroyVideoFrame(ref _videoRawFrame, ref _videoRawBuffer);
+				DestroyVideoFrame(ref _videoRawFrame);
 				_videoRawFrame = null;
-				_videoRawBuffer = null;
 			}
 			if(_videoRgbaFrame != null) {
-				DestroyVideoFrame(ref _videoRgbaFrame, ref _videoRgbaBuffer);
+				DestroyVideoFrame(ref _videoRgbaFrame);
 				_videoRgbaFrame = null;
-				_videoRgbaBuffer = null;
 			}
 			if(_audioRawBuffer != null) {
 				var audioRawBuffer = _audioRawBuffer;
@@ -322,15 +318,18 @@ namespace MotionTK {
 			AudioPlayback = null;
 		}
 
-		private static AVFrame* CreateVideoFrame(AVPixelFormat format, int width, int height, ref byte* buffer) {
+		private static AVFrame* CreateVideoFrame(AVPixelFormat format, int width, int height) {
 			var frame = av_frame_alloc();
-			if(frame == null) return null;
+			if(!ClearBuffer(frame, format, width, height)) return null;
+			return frame;
+		}
+
+		private static bool ClearBuffer(AVFrame* frame, AVPixelFormat format, int width, int height) {
+			if(frame == null) return false;
+
 			ulong size = (ulong)av_image_get_buffer_size(format, width, height, sizeof(int));
-			buffer = (byte*)av_malloc(size);
-			if(buffer == null) {
-				av_frame_free(&frame);
-				return null;
-			}
+			var buffer = (byte*)av_malloc(size);
+			if(buffer == null) return false;
 
 			var data = new byte_ptrArray4();
 			var linesize = new int_array4();
@@ -339,16 +338,13 @@ namespace MotionTK {
 				frame->data[i] = data[i];
 				frame->linesize[i] = linesize[i];
 			}
-
-			return frame;
+			return true;
 		}
 
-		private static void DestroyVideoFrame(ref AVFrame* frame, ref byte* buffer) {
+		private static void DestroyVideoFrame(ref AVFrame* frame) {
 			var f = frame;
-			av_free(buffer);
 			av_frame_free(&f);
 			frame = null;
-			buffer = null;
 		}
 
 		#endregion
@@ -391,6 +387,7 @@ namespace MotionTK {
 			// avoid huge jumps
 			//if(deltaTime < TimeSpan.FromMilliseconds(100))
 			VideoPlayback?.Update(deltaTime);
+			AudioPlayback?.Update();
 		}
 
 		private void NotifyStateChanged(PlayState newState) {
@@ -452,8 +449,9 @@ namespace MotionTK {
 
 			if(sws_scale(_videoSwContext, _videoRawFrame->data, _videoRawFrame->linesize, 0, _videoContext->height, _videoRgbaFrame->data, _videoRgbaFrame->linesize) == 0) return false;
 
-			var videoPacket = new VideoPacket(_videoRgbaFrame->data[0], _videoSize.Width, _videoSize.Height, TimeSpan.Zero);
+			var videoPacket = new VideoPacket(_videoRgbaFrame->data[0], TimeSpan.Zero);
 			VideoPlayback.PushPacket(videoPacket);
+			ClearBuffer(_videoRgbaFrame, AVPixelFormat.AV_PIX_FMT_RGBA, _videoSize.Width, _videoSize.Height);
 
 			return true;
 		}
