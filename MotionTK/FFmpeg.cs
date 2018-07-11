@@ -1,28 +1,29 @@
-﻿using System.Runtime.InteropServices;
-using FFmpeg.AutoGen;
+﻿using System;
+using System.Runtime.InteropServices;
 
 // ReSharper disable InconsistentNaming
 // ReSharper disable MemberHidesStaticFromOuterClass
 #pragma warning disable IDE1006
+#pragma warning disable CS0649
 
 namespace MotionTK {
 	internal static unsafe class FFmpeg {
 
 		#region Macros
 
-		public static long AV_NOPTS_VALUE = unchecked((long)0x8000000000000000L);
+		internal static long AV_NOPTS_VALUE = unchecked((long)0x8000000000000000L);
 
-		public const int AVSEEK_FLAG_ANY = 0x4;
+		internal const int AVSEEK_FLAG_ANY = 0x4;
 
-		public const int SWS_FAST_BILINEAR = 0x1;
-		public const int SWS_ACCURATE_RND = 0x40000;
+		internal const int SWS_FAST_BILINEAR = 0x1;
+		internal const int SWS_ACCURATE_RND = 0x40000;
 
-		public const int AV_CH_FRONT_LEFT = 0x1;
-		public const int AV_CH_FRONT_RIGHT = 0x2;
-		public const int AV_CH_FRONT_CENTER = 0x4;
+		internal const int AV_CH_FRONT_LEFT = 0x1;
+		internal const int AV_CH_FRONT_RIGHT = 0x2;
+		internal const int AV_CH_FRONT_CENTER = 0x4;
 
-		public const int AV_CH_LAYOUT_MONO = AV_CH_FRONT_CENTER;
-		public const int AV_CH_LAYOUT_STEREO = AV_CH_FRONT_LEFT | AV_CH_FRONT_RIGHT;
+		internal const int AV_CH_LAYOUT_MONO = AV_CH_FRONT_CENTER;
+		internal const int AV_CH_LAYOUT_STEREO = AV_CH_FRONT_LEFT | AV_CH_FRONT_RIGHT;
 
 		#endregion
 
@@ -54,7 +55,7 @@ namespace MotionTK {
 			return NativeMethods.av_image_get_buffer_size(pixFmt, width, height, align);
 		}
 
-		internal static int av_image_fill_arrays(ref byte_ptrArray4 dstData, ref int_array4 dstLinesize, byte* src, AVPixelFormat pixFmt, int width, int height, int align) {
+		internal static int av_image_fill_arrays(ref BytePtrArray4 dstData, ref IntArray4 dstLinesize, byte* src, AVPixelFormat pixFmt, int width, int height, int align) {
 			return NativeMethods.av_image_fill_arrays(ref dstData, ref dstLinesize, src, pixFmt, width, height, align);
 		}
 
@@ -190,6 +191,8 @@ namespace MotionTK {
 
 		#endregion
 
+		#region Imports
+
 		private static class NativeMethods {
 			private const string LibAVUtil = "avutil-56";
 			private const string LibAVFormat = "avformat-58";
@@ -216,7 +219,7 @@ namespace MotionTK {
 			internal static extern int av_image_get_buffer_size(AVPixelFormat pixFmt, int width, int height, int align);
 
 			[DllImport(LibAVUtil, CallingConvention = CallingConvention.Cdecl)]
-			internal static extern int av_image_fill_arrays(ref byte_ptrArray4 dstData, ref int_array4 dstLinesize, byte* src, AVPixelFormat pixFmt, int width, int height, int align);
+			internal static extern int av_image_fill_arrays(ref BytePtrArray4 dstData, ref IntArray4 dstLinesize, byte* src, AVPixelFormat pixFmt, int width, int height, int align);
 
 			[DllImport(LibAVUtil, CallingConvention = CallingConvention.Cdecl)]
 			internal static extern int av_samples_get_buffer_size(int* linesize, int nbChannels, int nbSamples, AVSampleFormat sampleFmt, int align);
@@ -306,7 +309,283 @@ namespace MotionTK {
 			[DllImport(LibSwResample, CallingConvention = CallingConvention.Cdecl)]
 			internal static extern void swr_free(SwrContext** s);
 		}
+
+		#endregion
 	}
+
+	#region Enums
+
+	internal enum AVPixelFormat {
+		AV_PIX_FMT_RGBA = 26
+	}
+
+	internal enum AVMediaType {
+		AVMEDIA_TYPE_VIDEO = 0,
+		AVMEDIA_TYPE_AUDIO = 1,
+	}
+
+	internal enum AVSampleFormat {
+		AV_SAMPLE_FMT_S16 = 1
+	}
+
+	internal enum AVCodecID { }
+
+	#endregion
+
+	#region Structures
+
+	[StructLayout(LayoutKind.Explicit)]
+	internal unsafe struct AVFrame {
+		[FieldOffset(0)]
+		internal BytePtrArray8 data;
+		[FieldOffset(32)]
+		internal IntArray8 linesize;
+		[FieldOffset(64)]
+		internal byte** extended_data;
+		[FieldOffset(68)]
+		internal int width;
+		[FieldOffset(72)]
+		internal int height;
+		[FieldOffset(76)]
+		internal int nb_samples;
+	}
+
+	[StructLayout(LayoutKind.Explicit)]
+	internal unsafe struct AVFormatContext {
+		[FieldOffset(24)]
+		internal uint nb_streams;
+		[FieldOffset(28)]
+		internal AVStream** streams;
+		[FieldOffset(1072)]
+		internal long duration;
+	}
+
+	[StructLayout(LayoutKind.Explicit)]
+	internal unsafe struct AVStream {
+		[FieldOffset(8)]
+		internal AVCodecContext* codec;
+		[FieldOffset(16)]
+		internal AVRational time_base;
+		[FieldOffset(32)]
+		internal long duration;
+		[FieldOffset(40)]
+		internal long nb_frames;
+		[FieldOffset(68)]
+		internal AVRational avg_frame_rate;
+		[FieldOffset(124)]
+		internal AVRational r_frame_rate;
+	}
+
+	[StructLayout(LayoutKind.Explicit)]
+	internal struct AVPacket {
+		[FieldOffset(32)]
+		internal int stream_index;
+	}
+
+	[StructLayout(LayoutKind.Explicit)]
+	internal struct AVCodecContext {
+		[FieldOffset(8)]
+		internal AVMediaType codec_type;
+		[FieldOffset(16)]
+		internal AVCodecID codec_id;
+		[FieldOffset(92)]
+		internal int width;
+		[FieldOffset(96)]
+		internal int height;
+		[FieldOffset(112)]
+		internal AVPixelFormat pix_fmt;
+		[FieldOffset(344)]
+		internal int sample_rate;
+		[FieldOffset(348)]
+		internal int channels;
+		[FieldOffset(352)]
+		internal AVSampleFormat sample_fmt;
+		[FieldOffset(376)]
+		internal ulong channel_layout;
+	}
+
+	internal struct AVCodec { }
+
+	internal struct AVInputFormat { }
+
+	internal struct AVDictionary { }
+
+	internal struct SwsFilter { }
+
+	internal struct SwsContext { }
+
+	internal struct SwrContext { }
+
+	internal unsafe struct BytePtrArray4 {
+		private byte* _0;
+		private byte* _1;
+		private byte* _2;
+		private byte* _3;
+
+		internal byte* this[int i] {
+			get {
+				switch(i) {
+					case 0: return _0;
+					case 1: return _1;
+					case 2: return _2;
+					case 3: return _3;
+					default: throw new ArgumentOutOfRangeException();
+				}
+			}
+			set {
+				switch(i) {
+					case 0: _0 = value; break;
+					case 1: _1 = value; break;
+					case 2: _2 = value; break;
+					case 3: _3 = value; break;
+					default: throw new ArgumentOutOfRangeException();
+				}
+			}
+		}
+	}
+
+	internal unsafe struct BytePtrArray8 {
+		private byte* _0;
+		private byte* _1;
+		private byte* _2;
+		private byte* _3;
+		private byte* _4;
+		private byte* _5;
+		private byte* _6;
+		private byte* _7;
+
+		internal byte* this[int i] {
+			get {
+				switch(i) {
+					case 0: return _0;
+					case 1: return _1;
+					case 2: return _2;
+					case 3: return _3;
+					case 4: return _4;
+					case 5: return _5;
+					case 6: return _6;
+					case 7: return _7;
+					default: throw new ArgumentOutOfRangeException();
+				}
+			}
+			set {
+				switch(i) {
+					case 0: _0 = value; break;
+					case 1: _1 = value; break;
+					case 2: _2 = value; break;
+					case 3: _3 = value; break;
+					case 4: _4 = value; break;
+					case 5: _5 = value; break;
+					case 6: _6 = value; break;
+					case 7: _7 = value; break;
+					default: throw new ArgumentOutOfRangeException();
+				}
+			}
+		}
+
+		public static implicit operator byte*[] (BytePtrArray8 arr) {
+			return new[] {
+				arr._0,
+				arr._1,
+				arr._2,
+				arr._3,
+				arr._4,
+				arr._5,
+				arr._6,
+				arr._7
+			};
+		}
+	}
+
+	internal struct IntArray4 {
+		internal static readonly int Size = 4;
+		private int _0;
+		private int _1;
+		private int _2;
+		private int _3;
+
+		internal int this[int i] {
+			get {
+				switch(i) {
+					case 0: return _0;
+					case 1: return _1;
+					case 2: return _2;
+					case 3: return _3;
+					default: throw new ArgumentOutOfRangeException();
+				}
+			}
+			set {
+				switch(i) {
+					case 0: _0 = value; break;
+					case 1: _1 = value; break;
+					case 2: _2 = value; break;
+					case 3: _3 = value; break;
+					default: throw new ArgumentOutOfRangeException();
+				}
+			}
+		}
+	}
+
+	internal struct IntArray8 {
+		private int _0;
+		private int _1;
+		private int _2;
+		private int _3;
+		private int _4;
+		private int _5;
+		private int _6;
+		private int _7;
+
+		internal int this[int i] {
+			get {
+				switch(i) {
+					case 0: return _0;
+					case 1: return _1;
+					case 2: return _2;
+					case 3: return _3;
+					case 4: return _4;
+					case 5: return _5;
+					case 6: return _6;
+					case 7: return _7;
+					default: throw new ArgumentOutOfRangeException();
+				}
+			}
+			set {
+				switch(i) {
+					case 0: _0 = value; break;
+					case 1: _1 = value; break;
+					case 2: _2 = value; break;
+					case 3: _3 = value; break;
+					case 4: _4 = value; break;
+					case 5: _5 = value; break;
+					case 6: _6 = value; break;
+					case 7: _7 = value; break;
+					default: throw new ArgumentOutOfRangeException();
+				}
+			}
+		}
+
+		public static implicit operator int[] (IntArray8 arr) {
+			return new[] {
+				arr._0,
+				arr._1,
+				arr._2,
+				arr._3,
+				arr._4,
+				arr._5,
+				arr._6,
+				arr._7
+			};
+		}
+	}
+
+	internal struct AVRational {
+		internal int num;
+		internal int den;
+	}
+
+	#endregion
 }
 
+#pragma warning restore CS0649
 #pragma warning restore IDE1006

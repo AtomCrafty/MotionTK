@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Drawing;
 using System.Threading;
-using FFmpeg.AutoGen;
 using static MotionTK.FFmpeg;
 
 namespace MotionTK {
@@ -331,10 +330,10 @@ namespace MotionTK {
 			var buffer = (byte*)av_malloc(size);
 			if(buffer == null) return false;
 
-			var data = new byte_ptrArray4();
-			var linesize = new int_array4();
+			var data = new BytePtrArray4();
+			var linesize = new IntArray4();
 			av_image_fill_arrays(ref data, ref linesize, buffer, format, width, height, sizeof(int));
-			for(uint i = 0; i < 4; i++) {
+			for(int i = 0; i < 4; i++) {
 				frame->data[i] = data[i];
 				frame->linesize[i] = linesize[i];
 			}
