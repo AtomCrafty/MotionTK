@@ -19,7 +19,6 @@ namespace MotionTK {
 		private byte* _videoRawBuffer;
 		private byte* _videoRgbaBuffer;
 		private SwsContext* _videoSwContext;
-		public VideoPlayback VideoPlayback { get; private set; }
 
 		private int _audioStreamId = -1;
 		private AVCodecContext* _audioContext;
@@ -27,7 +26,6 @@ namespace MotionTK {
 		private AVFrame* _audioRawBuffer;
 		private byte* _audioPcmBuffer;
 		private SwrContext* _audioSwContext;
-		public AudioPlayback AudioPlayback { get; private set; }
 
 		private AVFormatContext* _formatContext;
 		private Thread _decodeThread;
@@ -42,6 +40,9 @@ namespace MotionTK {
 
 		public bool HasVideo => _videoStreamId != -1;
 		public bool HasAudio => _audioStreamId != -1;
+		public VideoPlayback VideoPlayback { get; private set; }
+		public AudioPlayback AudioPlayback { get; private set; }
+
 		public Size VideoSize => new Size(_videoSize.Width, _videoSize.Height);
 		public PlayState State { get; private set; } = PlayState.Stopped;
 		public int AudioChannelCount { get; private set; } = -1;
