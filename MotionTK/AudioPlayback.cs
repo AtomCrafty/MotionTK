@@ -5,29 +5,30 @@ using OpenTK.Audio.OpenAL;
 namespace MotionTK {
 	public class AudioPlayback : Playback<AudioPacket> {
 
-		protected int _sourceHandle;
+		public int SourceHandle { get; protected set; }
+
 		protected int _channelCount;
 		protected int _sampleRate;
 
 		internal AudioPlayback(DataSource dataSource) : base(dataSource) {
-			_sourceHandle = AL.GenSource();
+			SourceHandle = AL.GenSource();
 		}
 
 		public override void Dispose() {
-			if(_sourceHandle == -1) return;
+			if(SourceHandle == -1) return;
 
 			// free queued buffers
-			AL.SourceStop(_sourceHandle);
-			AL.GetSource(_sourceHandle, ALGetSourcei.BuffersQueued, out int queued);
+			AL.SourceStop(SourceHandle);
+			AL.GetSource(SourceHandle, ALGetSourcei.BuffersQueued, out int queued);
 			if(queued > 0) {
 				var buffers = new int[queued];
-				AL.SourceUnqueueBuffers(_sourceHandle, queued, buffers);
+				AL.SourceUnqueueBuffers(SourceHandle, queued, buffers);
 				foreach(int b in buffers) {
 					AL.DeleteBuffer(b);
 				}
 			}
-			AL.DeleteSource(_sourceHandle);
-			_sourceHandle = -1;
+			AL.DeleteSource(SourceHandle);
+			SourceHandle = -1;
 
 			base.Dispose();
 		}
@@ -42,13 +43,13 @@ namespace MotionTK {
 		internal override void StateChanged(PlayState oldState, PlayState newState) {
 			switch(newState) {
 				case PlayState.Playing when DataSource.HasAudio:
-					AL.SourcePlay(_sourceHandle);
+					AL.SourcePlay(SourceHandle);
 					break;
 				case PlayState.Paused when DataSource.HasAudio:
-					AL.SourcePause(_sourceHandle);
+					AL.SourcePause(SourceHandle);
 					break;
 				case PlayState.Stopped:
-					AL.SourceStop(_sourceHandle);
+					AL.SourceStop(SourceHandle);
 					while(PacketQueue.Any()) {
 						PacketQueue.Take();
 					}
@@ -59,14 +60,14 @@ namespace MotionTK {
 		internal void Update() {
 			const int maxQueue = 40;
 
-			AL.GetSource(_sourceHandle, ALGetSourcei.SourceState, out int state);
-			AL.GetSource(_sourceHandle, ALGetSourcei.BuffersQueued, out int queued);
-			AL.GetSource(_sourceHandle, ALGetSourcei.BuffersProcessed, out int processed);
+			AL.GetSource(SourceHandle, ALGetSourcei.SourceState, out int state);
+			AL.GetSource(SourceHandle, ALGetSourcei.BuffersQueued, out int queued);
+			AL.GetSource(SourceHandle, ALGetSourcei.BuffersProcessed, out int processed);
 
 			// unqueue processed buffers
 			if(processed > 0) {
 				var processedBuffers = new int[processed];
-				AL.SourceUnqueueBuffers(_sourceHandle, processed, processedBuffers);
+				AL.SourceUnqueueBuffers(SourceHandle, processed, processedBuffers);
 				foreach(int bufferHandle in processedBuffers) {
 					AudioBuffer.ByHandle(bufferHandle).MakeAvailable();
 				}
@@ -78,14 +79,14 @@ namespace MotionTK {
 				buffer.Data = packet.SampleBuffer;
 				buffer.Bind();
 
-				AL.SourceQueueBuffer(_sourceHandle, buffer.Handle);
+				AL.SourceQueueBuffer(SourceHandle, buffer.Handle);
 			}
 
 			// restart if necessary
 			if((ALSourceState)state != ALSourceState.Playing && DataSource.State == PlayState.Playing) {
 				//Console.WriteLine("Playing source (" + (ALSourceState)state + ", " + processed + "/" + queued + ")");
 				//AL.SourcePause(_sourceHandle);
-				AL.SourcePlay(_sourceHandle);
+				AL.SourcePlay(SourceHandle);
 			}
 		}
 	}
