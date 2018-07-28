@@ -21,6 +21,8 @@ namespace Sample {
 		internal static ContextHandle AudioContext;
 		internal static GraphicsContext GraphicsContext;
 
+		internal static Size PreviousSize;
+
 		internal static void Main(string[] args) {
 			if(args.Length != 1) {
 				Console.WriteLine("Usage: " + Assembly.GetExecutingAssembly().GetName().Name + " <video file>");
@@ -53,7 +55,6 @@ namespace Sample {
 					Window = new GameWindow {
 						// uncomment this line to disable the frame rate limitation
 						//VSync = VSyncMode.Off,
-						WindowBorder = WindowBorder.Fixed,
 						ClientSize = new Size(1280, 720),
 						Title = "MotionTK Playback Demo"
 					};
@@ -86,21 +87,22 @@ namespace Sample {
 		internal static void Run() {
 			if(Video == null) return;
 
-			Window.ClientSize = Video.Size;
+			Window.ClientSize = PreviousSize = Video.Size;
 			Window.Visible = true;
 			Source.Play();
 
 			GL.MatrixMode(MatrixMode.Projection);
 			GL.LoadIdentity();
 			GL.Ortho(0, 1, 1, 0, 0, 1);
-			GL.Viewport(Video.Size);
-			GraphicsContext.Update(Window.WindowInfo);
+			ResetViewport();
 
 			var frameTimes = new DateTime[100];
 			int frameTimeIndex = 0;
 
 			// Render loop
 			while(Window.Exists && Source.State == PlayState.Playing) {
+				if(Window.ClientSize != PreviousSize) ResetViewport();
+
 				GL.Clear(ClearBufferMask.ColorBufferBit);
 
 				Source.Update();
@@ -134,6 +136,19 @@ namespace Sample {
 			}
 			GL.End();
 			GL.Color3(Color.White);
+		}
+
+		private static void ResetViewport() {
+			var wsize = Window.ClientSize;
+			var vsize = Video.Size;
+
+			double scale = Math.Min((double)wsize.Width / vsize.Width, (double)wsize.Height / vsize.Height);
+
+			var size = new Size((int)(vsize.Width * scale), (int)(vsize.Height * scale));
+			var point = new Point((wsize.Width - size.Width) / 2, (wsize.Height - size.Height) / 2);
+
+			GL.Viewport(point, size);
+			GraphicsContext.Update(Window.WindowInfo);
 		}
 
 		internal static void Cleanup() {
