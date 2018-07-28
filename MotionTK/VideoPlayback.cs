@@ -36,10 +36,10 @@ namespace MotionTK {
 			GL.BindTexture(TextureTarget.Texture2D, TextureHandle);
 			GL.Begin(PrimitiveType.Quads);
 			{
-				GL.TexCoord2(0.0f, 0.0f); GL.Vertex2(-1.0f, 1.0f);
-				GL.TexCoord2(0.0f, 1.0f); GL.Vertex2(-1.0f, -1.0f);
-				GL.TexCoord2(1.0f, 1.0f); GL.Vertex2(1.0f, -1.0f);
-				GL.TexCoord2(1.0f, 0.0f); GL.Vertex2(1.0f, 1.0f);
+				GL.TexCoord2(0, 0); GL.Vertex2(0, 0);
+				GL.TexCoord2(0, 1); GL.Vertex2(0, 1);
+				GL.TexCoord2(1, 1); GL.Vertex2(1, 1);
+				GL.TexCoord2(1, 0); GL.Vertex2(1, 0);
 			}
 			GL.End();
 			GL.Disable(EnableCap.Texture2D);
@@ -85,12 +85,14 @@ namespace MotionTK {
 				_skipFrames += jumps;
 			}
 
-			while(_skipFrames > 1 && PacketQueue.TryTake(out var ignoredPacket)) {
+			//int skipped = 0;
+			while(_skipFrames > 1 && PacketQueue.Count > 1 && PacketQueue.TryTake(out var ignoredPacket)) {
 				_skipFrames--;
 				PlayedFrameCount++;
 				ignoredPacket.Dispose();
-				//Console.WriteLine("Skipped frame " + PlayedFrameCount);
+				//skipped++;
 			}
+			//if(skipped > 0) Console.WriteLine($"Skipped {skipped} frames");
 
 			if(_skipFrames < 1 || !PacketQueue.TryTake(out var packet)) return;
 

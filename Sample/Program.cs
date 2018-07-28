@@ -90,6 +90,12 @@ namespace Sample {
 			Window.Visible = true;
 			Source.Play();
 
+			GL.MatrixMode(MatrixMode.Projection);
+			GL.LoadIdentity();
+			GL.Ortho(0, 1, 1, 0, 0, 1);
+			GL.Viewport(Video.Size);
+			GraphicsContext.Update(Window.WindowInfo);
+
 			var frameTimes = new DateTime[100];
 			int frameTimeIndex = 0;
 
@@ -115,17 +121,16 @@ namespace Sample {
 
 		internal static void DrawProgressBar() {
 			double progress = Source.PlayingOffset.TotalMilliseconds / Source.FileLength.TotalMilliseconds;
-			double x = progress * 2 - 1;
 
 			GL.Enable(EnableCap.Blend);
 			GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 			GL.Color4(Color.FromArgb(100, Color.Red));
 			GL.Begin(PrimitiveType.Quads);
 			{
-				GL.Vertex2(-1, 30d / Video.Size.Height - 1);
-				GL.Vertex2(-1, -1);
-				GL.Vertex2(x, -1);
-				GL.Vertex2(x, 30d / Video.Size.Height - 1);
+				GL.Vertex2(0, 1);
+				GL.Vertex2(0, 1 - 30d / Window.ClientSize.Height);
+				GL.Vertex2(progress, 1 - 30d / Window.ClientSize.Height);
+				GL.Vertex2(progress, 1);
 			}
 			GL.End();
 			GL.Color3(Color.White);

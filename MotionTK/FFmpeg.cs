@@ -2,9 +2,6 @@
 using System.Runtime.InteropServices;
 
 // ReSharper disable InconsistentNaming
-// ReSharper disable MemberHidesStaticFromOuterClass
-#pragma warning disable IDE1006
-#pragma warning disable CS0649
 
 namespace MotionTK {
 	internal static unsafe class FFmpeg {
@@ -420,6 +417,3 @@ namespace MotionTK {
 
 	#endregion
 }
-
-#pragma warning restore CS0649
-#pragma warning restore IDE1006
