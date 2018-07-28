@@ -1,5 +1,5 @@
 # MotionTK
-Video playback library for OpenTK built on FFmpeg, inspired by the [Motion library for SFML](https://github.com/zsbzsb/Motion).
+"Motion for OpenTK", or MotionTK for short, is a video playback library for [OpenTK](https://github.com/opentk/opentk) built on FFmpeg, inspired by the [Motion library for SFML](https://github.com/zsbzsb/Motion).
 
 ## About
 I was looking for a lightweight video playback library for OpenTK, but couldn't find anything that met my requirements.
@@ -22,12 +22,12 @@ OpenTK itself requires OpenGL and OpenAL to be installed.
 Videos are loaded by instantiating the `DisplaySource` class.
 From there, you can access the `VideoPlayback` property, which exposes a `Draw` function to render the current frame as well as the `TextureHandle` itself.
 The audio `SourceHandle` can be accessed via the `AudioPlayback` property.
-The playback control functions (`Play`, `Pause` and the like) are available via the `DisplaySource` instance.
+Playback control functions (`Play`, `Pause` and the like) are available via the `DisplaySource` instance.
 Don't forget to dispose all disposable instances you create!
 
 For a working example check the "Sample" project included with the sources.
 
 ## Contributing
-If you experience any problems, please file a github issue or contact me under atomcrafty@frucost.net.
+If you experience any problems, please file a GitHub issue or contact me under atomcrafty@frucost.net.
 
 You are of course also invited to fix it yourself and create a pull request :)
