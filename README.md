@@ -31,3 +31,6 @@ For a working example check the "Sample" project included with the sources.
 If you experience any problems, please file a GitHub issue or contact me under atomcrafty@frucost.net.
 
 You are of course also invited to fix it yourself and create a pull request :)
+
+## Known Issues
+FFmpeg has trouble finding files with non-ASCII characters in their path.
