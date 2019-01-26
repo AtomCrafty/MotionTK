@@ -219,6 +219,8 @@ namespace MotionTK {
 		internal AVMediaType codec_type;
 		[FieldOffset(16)]
 		internal AVCodecID codec_id;
+		[FieldOffset(76)]
+		internal AVRational time_base;
 		[FieldOffset(92)]
 		internal int width;
 		[FieldOffset(96)]

@@ -97,14 +97,18 @@ namespace MotionTK {
 			if(_skipFrames < 1 || !PacketQueue.TryTake(out var packet)) return;
 
 			#region Debug
+#if DEBUG
+			/*
 			var videoTime = TimeSpan.FromTicks(_frameTime.Ticks * PlayedFrameCount);
 			Console.ForegroundColor = ConsoleColor.Cyan;
 			Console.Write($"Frame {PlayedFrameCount + 1} ({_totalPlayTime} ~ {videoTime}) ");
 			Console.ForegroundColor = ConsoleColor.Red;
 			Console.Write(_totalPlayTime - videoTime);
 			Console.ForegroundColor = ConsoleColor.Green;
-			Console.Write($" [{_frameTime}]    \r");
+			Console.Write($" [{_frameTime} ~ {1 / _frameTime.TotalSeconds:F2} FPS]    \r");
 			Console.ResetColor();
+			//*/
+#endif
 			#endregion
 
 			_skipFrames--;

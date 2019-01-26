@@ -7,6 +7,7 @@ using OpenTK;
 using OpenTK.Audio.OpenAL;
 using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
+using OpenTK.Input;
 
 namespace Sample {
 	internal static class Program {
@@ -59,6 +60,12 @@ namespace Sample {
 						Title = "MotionTK Playback Demo"
 					};
 
+					Window.KeyDown += (s, args) => {
+						if(args.Key == Key.Enter) {
+							Window.WindowState = Window.WindowState == WindowState.Fullscreen ? WindowState.Normal : WindowState.Fullscreen;
+						}
+					};
+
 					// ReSharper disable once AccessToDisposedClosure
 					mre.Set();
 
@@ -89,6 +96,7 @@ namespace Sample {
 
 			Window.ClientSize = PreviousSize = Video.Size;
 			Window.Visible = true;
+			Window.VSync = VSyncMode.Off;
 			Source.Play();
 
 			GL.MatrixMode(MatrixMode.Projection);
@@ -112,12 +120,12 @@ namespace Sample {
 				var t1 = frameTimes[frameTimeIndex] = DateTime.Now;
 				frameTimeIndex = (frameTimeIndex + 1) % 100;
 				var t2 = frameTimes[frameTimeIndex];
-				Console.WriteLine(t2 == default(DateTime) ? "????? FPS" : $"{100 / (t1 - t2).TotalSeconds:F2} FPS");
+				Console.WriteLine(t2 == default(DateTime) ? "????? FPS\r" : $"{100 / (t1 - t2).TotalSeconds:F2} FPS\r");
 				//*/
 
 				DrawProgressBar();
 				Window.SwapBuffers();
-				Thread.Sleep(10);
+				//Thread.Sleep(10);
 			}
 		}
 

@@ -57,6 +57,7 @@ namespace MotionTK {
 			get => _playingOffset;
 			set {
 				if(!HasVideo && !HasAudio) return;
+				bool startDecode = _runDecodeThread;
 				bool startPlaying = State == PlayState.Playing;
 				StopDecodeThread();
 				_playingOffset = value;
@@ -87,7 +88,7 @@ namespace MotionTK {
 					AudioPlayback.Flush();
 				}
 
-				StartDecodeThread();
+				if(startDecode) StartDecodeThread();
 				if(startPlaying) Play();
 			}
 		}
@@ -376,6 +377,7 @@ namespace MotionTK {
 			IsEndOfFileReached = true;
 			NotifyStateChanged(PlayState.Stopped);
 			State = PlayState.Stopped;
+			StopDecodeThread();
 			IsEndOfFileReached = false;
 			PlayingOffset = TimeSpan.Zero;
 		}
@@ -414,7 +416,7 @@ namespace MotionTK {
 		}
 
 		private void StopDecodeThread() {
-			if(_decodeThread == null)
+			if(_decodeThread == null || !_runDecodeThread)
 				return;
 			_runDecodeThread = false;
 			_decodeThread.Join();
@@ -435,6 +437,7 @@ namespace MotionTK {
 							else if(packet->stream_index == _audioStreamId) {
 								validPacket = DecodeAudio(packet);
 							}
+							else Console.WriteLine("Discarding packet for stream " + packet->stream_index);
 						}
 						else {
 							_playingToEof = true;
