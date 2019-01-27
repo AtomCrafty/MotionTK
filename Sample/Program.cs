@@ -1,13 +1,25 @@
 ﻿using System;
 using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.IO;
 using System.Reflection;
 using System.Threading;
 using MotionTK;
 using OpenTK;
 using OpenTK.Audio.OpenAL;
 using OpenTK.Graphics;
-using OpenTK.Graphics.OpenGL;
+using OpenTK.Graphics.ES11;
+using OpenTK.Graphics.OpenGL4;
 using OpenTK.Input;
+using BeginMode = OpenTK.Graphics.OpenGL4.BeginMode;
+using BlendingFactor = OpenTK.Graphics.OpenGL4.BlendingFactor;
+using ClearBufferMask = OpenTK.Graphics.OpenGL4.ClearBufferMask;
+using DrawElementsType = OpenTK.Graphics.OpenGL4.DrawElementsType;
+using EnableCap = OpenTK.Graphics.OpenGL4.EnableCap;
+using GL = OpenTK.Graphics.OpenGL4.GL;
+using TextureTarget = OpenTK.Graphics.OpenGL4.TextureTarget;
+using TextureUnit = OpenTK.Graphics.OpenGL4.TextureUnit;
+using VertexAttribPointerType = OpenTK.Graphics.OpenGL4.VertexAttribPointerType;
 
 namespace Sample {
 	internal static class Program {
@@ -89,6 +101,16 @@ namespace Sample {
 			// The active graphics context must be available on the rendering thread
 			GraphicsContext = new GraphicsContext(GraphicsMode.Default, Window.WindowInfo);
 			GraphicsContext.MakeCurrent(Window.WindowInfo);
+			GlSetup();
+		}
+
+		internal static void Cleanup() {
+			GlCleanup();
+			Window.Close();
+			GraphicsContext.Dispose();
+			Alc.MakeContextCurrent(ContextHandle.Zero);
+			Alc.DestroyContext(AudioContext);
+			Alc.CloseDevice(AudioDevice);
 		}
 
 		internal static void Run() {
@@ -99,9 +121,6 @@ namespace Sample {
 			Window.VSync = VSyncMode.Off;
 			Source.Play();
 
-			GL.MatrixMode(MatrixMode.Projection);
-			GL.LoadIdentity();
-			GL.Ortho(0, 1, 1, 0, 0, 1);
 			ResetViewport();
 
 			var frameTimes = new DateTime[100];
@@ -114,7 +133,7 @@ namespace Sample {
 				GL.Clear(ClearBufferMask.ColorBufferBit);
 
 				Source.Update();
-				Video.Draw();
+				DrawVideo();
 
 				/*/ calculate fps
 				var t1 = frameTimes[frameTimeIndex] = DateTime.Now;
@@ -129,21 +148,124 @@ namespace Sample {
 			}
 		}
 
+		#region Drawing
+
+		internal static readonly float[] VideoVertices = {
+			-1, -1, 0, 1,
+			-1, +1, 0, 0,
+			+1, +1, 1, 0,
+			+1, -1, 1, 1,
+		};
+
+		internal static readonly uint[] VideoIndices = {
+			0, 1, 2,
+			2, 3, 0
+		};
+
+		internal static int VideoVertexArray;
+		internal static int VideoVertexBuffer;
+		internal static int VideoElementBuffer;
+		internal static Shader VideoShader;
+
+		internal static readonly uint[] ProgressIndices = {
+			0, 1, 2,
+			2, 3, 0
+		};
+
+		internal static int ProgressVertexArray;
+		internal static int ProgressVertexBuffer;
+		internal static int ProgressElementBuffer;
+		internal static Shader ProgressShader;
+
+		private static void GlSetup() {
+			// setup video data
+			using(var vertReader = new StreamReader(Assembly.GetExecutingAssembly().GetManifestResourceStream("Sample.res.video.vert") ?? throw new FileLoadException("Unable to load shader source", "res/video.vert")))
+			using(var fragReader = new StreamReader(Assembly.GetExecutingAssembly().GetManifestResourceStream("Sample.res.video.frag") ?? throw new FileLoadException("Unable to load shader source", "res/video.frag")))
+				VideoShader = new Shader(vertReader.ReadToEnd(), fragReader.ReadToEnd());
+
+			VideoVertexBuffer = GL.GenBuffer();
+			GL.BindBuffer(BufferTarget.ArrayBuffer, VideoVertexBuffer);
+			GL.BufferData(BufferTarget.ArrayBuffer, VideoVertices.Length * sizeof(float), VideoVertices, BufferUsageHint.StaticDraw);
+
+			VideoElementBuffer = GL.GenBuffer();
+			GL.BindBuffer(BufferTarget.ElementArrayBuffer, VideoElementBuffer);
+			GL.BufferData(BufferTarget.ElementArrayBuffer, VideoIndices.Length * sizeof(int), VideoIndices, BufferUsageHint.StaticDraw);
+
+			VideoVertexArray = GL.GenVertexArray();
+			GL.BindVertexArray(VideoVertexArray);
+			GL.BindBuffer(BufferTarget.ArrayBuffer, VideoVertexBuffer);
+			GL.BindBuffer(BufferTarget.ElementArrayBuffer, VideoElementBuffer);
+
+			int vPosition = VideoShader.GetAttribLocation("vPosition");
+			int vTexCoord = VideoShader.GetAttribLocation("vTexCoord");
+			GL.VertexAttribPointer(vPosition, 2, VertexAttribPointerType.Float, false, 4 * sizeof(float), 0);
+			GL.VertexAttribPointer(vTexCoord, 2, VertexAttribPointerType.Float, false, 4 * sizeof(float), 2 * sizeof(float));
+			GL.EnableVertexAttribArray(vPosition);
+			GL.EnableVertexAttribArray(vTexCoord);
+
+			GL.BindVertexArray(0);
+
+			// setup progress data
+			using(var vertReader = new StreamReader(Assembly.GetExecutingAssembly().GetManifestResourceStream("Sample.res.progress.vert") ?? throw new FileLoadException("Unable to load shader source", "res/progress.vert")))
+			using(var fragReader = new StreamReader(Assembly.GetExecutingAssembly().GetManifestResourceStream("Sample.res.progress.frag") ?? throw new FileLoadException("Unable to load shader source", "res/progress.frag")))
+				ProgressShader = new Shader(vertReader.ReadToEnd(), fragReader.ReadToEnd());
+
+			ProgressVertexBuffer = GL.GenBuffer();
+
+			ProgressElementBuffer = GL.GenBuffer();
+			GL.BindBuffer(BufferTarget.ElementArrayBuffer, ProgressElementBuffer);
+			GL.BufferData(BufferTarget.ElementArrayBuffer, ProgressIndices.Length * sizeof(int), ProgressIndices, BufferUsageHint.StaticDraw);
+
+			ProgressVertexArray = GL.GenVertexArray();
+			GL.BindVertexArray(ProgressVertexArray);
+			GL.BindBuffer(BufferTarget.ArrayBuffer, ProgressVertexBuffer);
+			GL.BindBuffer(BufferTarget.ElementArrayBuffer, ProgressElementBuffer);
+
+			vPosition = ProgressShader.GetAttribLocation("vPosition");
+			GL.VertexAttribPointer(vPosition, 2, VertexAttribPointerType.Float, false, 2 * sizeof(float), 0);
+			GL.EnableVertexAttribArray(vPosition);
+
+			GL.BindVertexArray(0);
+		}
+
+		private static void GlCleanup() {
+			GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
+			GL.BindVertexArray(0);
+			GL.UseProgram(0);
+
+			GL.DeleteBuffer(VideoElementBuffer);
+			GL.DeleteBuffer(VideoVertexBuffer);
+			GL.DeleteVertexArray(VideoVertexArray);
+			VideoShader.Dispose();
+		}
+
+		internal static void DrawVideo() {
+			VideoShader.Use();
+			GL.BindVertexArray(VideoVertexArray);
+			GL.ActiveTexture(TextureUnit.Texture0);
+			GL.BindTexture(TextureTarget.Texture2D, Video.TextureHandle);
+			GL.DrawElements(BeginMode.Triangles, VideoIndices.Length, DrawElementsType.UnsignedInt, 0);
+		}
+
 		internal static void DrawProgressBar() {
-			double progress = Source.PlayingOffset.TotalMilliseconds / Source.FileLength.TotalMilliseconds;
+			float progress = (float)(Source.PlayingOffset.TotalMilliseconds / Source.FileLength.TotalMilliseconds);
 
 			GL.Enable(EnableCap.Blend);
 			GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-			GL.Color4(Color.FromArgb(100, Color.Red));
-			GL.Begin(PrimitiveType.Quads);
-			{
-				GL.Vertex2(0, 1);
-				GL.Vertex2(0, 1 - 30d / Window.ClientSize.Height);
-				GL.Vertex2(progress, 1 - 30d / Window.ClientSize.Height);
-				GL.Vertex2(progress, 1);
-			}
-			GL.End();
-			GL.Color3(Color.White);
+
+			var progressVertices = new[] {
+				-1,         -1,
+				progress-1, -1,
+				progress-1, -0.9f,
+				-1,         -0.9f
+			};
+
+			GL.BindBuffer(BufferTarget.ArrayBuffer, ProgressVertexBuffer);
+			GL.BufferData(BufferTarget.ArrayBuffer, progressVertices.Length * sizeof(float), progressVertices, BufferUsageHint.StaticDraw);
+
+			ProgressShader.Use();
+			GL.BindVertexArray(ProgressVertexArray);
+			GL.DrawElements(BeginMode.Triangles, ProgressIndices.Length, DrawElementsType.UnsignedInt, 0);
 		}
 
 		private static void ResetViewport() {
@@ -159,12 +281,6 @@ namespace Sample {
 			GraphicsContext.Update(Window.WindowInfo);
 		}
 
-		internal static void Cleanup() {
-			Window.Close();
-			GraphicsContext.Dispose();
-			Alc.MakeContextCurrent(ContextHandle.Zero);
-			Alc.DestroyContext(AudioContext);
-			Alc.CloseDevice(AudioDevice);
-		}
+		#endregion
 	}
 }

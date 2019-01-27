@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Drawing;
 using System.Linq;
-using OpenTK.Graphics.OpenGL;
+using OpenTK.Graphics.OpenGL4;
 
 namespace MotionTK {
 	public class VideoPlayback : Playback<VideoPacket> {
@@ -28,21 +28,6 @@ namespace MotionTK {
 			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
 			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToBorder);
 			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToBorder);
-		}
-
-		public void Draw() {
-			// Draw the Color Texture
-			GL.Enable(EnableCap.Texture2D);
-			GL.BindTexture(TextureTarget.Texture2D, TextureHandle);
-			GL.Begin(PrimitiveType.Quads);
-			{
-				GL.TexCoord2(0, 0); GL.Vertex2(0, 0);
-				GL.TexCoord2(0, 1); GL.Vertex2(0, 1);
-				GL.TexCoord2(1, 1); GL.Vertex2(1, 1);
-				GL.TexCoord2(1, 0); GL.Vertex2(1, 0);
-			}
-			GL.End();
-			GL.Disable(EnableCap.Texture2D);
 		}
 
 		internal override void SourceReloaded() {
