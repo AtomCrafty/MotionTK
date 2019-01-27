@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.IO;
 using System.Reflection;
 using System.Threading;
@@ -8,18 +7,8 @@ using MotionTK;
 using OpenTK;
 using OpenTK.Audio.OpenAL;
 using OpenTK.Graphics;
-using OpenTK.Graphics.ES11;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Input;
-using BeginMode = OpenTK.Graphics.OpenGL4.BeginMode;
-using BlendingFactor = OpenTK.Graphics.OpenGL4.BlendingFactor;
-using ClearBufferMask = OpenTK.Graphics.OpenGL4.ClearBufferMask;
-using DrawElementsType = OpenTK.Graphics.OpenGL4.DrawElementsType;
-using EnableCap = OpenTK.Graphics.OpenGL4.EnableCap;
-using GL = OpenTK.Graphics.OpenGL4.GL;
-using TextureTarget = OpenTK.Graphics.OpenGL4.TextureTarget;
-using TextureUnit = OpenTK.Graphics.OpenGL4.TextureUnit;
-using VertexAttribPointerType = OpenTK.Graphics.OpenGL4.VertexAttribPointerType;
 
 namespace Sample {
 	internal static class Program {
@@ -66,7 +55,7 @@ namespace Sample {
 			using(var mre = new ManualResetEvent(false)) {
 				new Thread(() => {
 					Window = new GameWindow {
-						// uncomment this line to disable the frame rate limitation
+						// comment out this line to disable the frame rate limitation
 						//VSync = VSyncMode.Off,
 						ClientSize = new Size(1280, 720),
 						Title = "MotionTK Playback Demo"
