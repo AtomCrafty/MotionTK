@@ -1,8 +1,6 @@
-﻿using System;
+﻿namespace Sample; 
 
-namespace Sample {
-	internal abstract class GlBase : IDisposable {
-		public int Handle { get; protected set; }
-		public abstract void Dispose();
-	}
+internal abstract class GlBase : IDisposable {
+	public int Handle { get; protected set; }
+	public abstract void Dispose();
 }

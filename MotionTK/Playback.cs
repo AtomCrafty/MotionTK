@@ -1,32 +1,31 @@
-﻿using System;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 
-namespace MotionTK {
-	public abstract class Playback<TPacket> : IDisposable where TPacket : Packet {
+namespace MotionTK; 
 
-		public readonly DataSource DataSource;
-		protected readonly BlockingCollection<TPacket> PacketQueue = new BlockingCollection<TPacket>();
+public abstract class Playback<TPacket> : IDisposable where TPacket : Packet {
 
-		internal int QueuedPackets => PacketQueue.Count;
+	public readonly DataSource DataSource;
+	protected readonly BlockingCollection<TPacket> _packetQueue = new();
 
-		protected Playback(DataSource dataSource) {
-			DataSource = dataSource;
-		}
+	internal int QueuedPackets => _packetQueue.Count;
 
-		internal abstract void SourceReloaded();
-		internal abstract void StateChanged(PlayState oldState, PlayState newState);
+	protected Playback(DataSource dataSource) {
+		DataSource = dataSource;
+	}
 
-		internal virtual void Flush() {
-			while(PacketQueue.TryTake(out var packet)) packet.Dispose();
-		}
+	internal abstract void SourceReloaded();
+	internal abstract void StateChanged(PlayState oldState, PlayState newState);
 
-		internal void PushPacket(TPacket packet) {
-			PacketQueue.Add(packet);
-		}
+	internal virtual void Flush() {
+		while(_packetQueue.TryTake(out var packet)) packet.Dispose();
+	}
 
-		public virtual void Dispose() {
-			Flush();
-			PacketQueue.Dispose();
-		}
+	internal void PushPacket(TPacket packet) {
+		_packetQueue.Add(packet);
+	}
+
+	public virtual void Dispose() {
+		Flush();
+		_packetQueue.Dispose();
 	}
 }

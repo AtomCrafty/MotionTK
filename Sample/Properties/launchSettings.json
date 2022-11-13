@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Sample": {
+      "commandName": "Project",
+      "commandLineArgs": "test2.mp4"
+    }
+  }
+}
